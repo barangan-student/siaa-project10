@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Join Screen -->
+    <div id="join-screen">
+        <div class="form-container">
+            <h1>Join Chat</h1>
+            <form id="join-form">
+                <input type="text" id="username-input" placeholder="Enter your username" required autocomplete="off" maxlength="20">
+                <button type="submit">Join</button>
+                <p id="join-error-message" class="error-message"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Chat Screen -->
+    <div id="chat-screen" class="hidden">
+        <header class="app-header">
+            <!-- MODIFIED: Added a button to toggle the user list on mobile -->
+            <button id="toggle-users-btn">Users</button>
+            <h1>Real-Time Chat</h1>
+            <div id="connection-status">Status: <span id="status-indicator">Disconnected</span></div>
+        </header>
+        <div class="chat-container">
+            <!-- B8: Connected Users List -->
+            <aside id="users-sidebar">
+                <h2>Connected Users</h2>
+                <ul id="user-list"></ul>
+            </aside>
+            <main id="chat-main">
+                <div id="chat-messages"></div>
+                <div id="typing-indicator"></div>
+                <form id="chat-form">
+                    <input id="message-input" placeholder="Type a message..." autocomplete="off" required>
+                    <button type="submit">Send</button>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
