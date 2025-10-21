@@ -13,7 +13,9 @@ const io = socketio(server);
 
 const { createClient } = require('redis');
 
-const redisClient = createClient();
+const redisClient = createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
 
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
@@ -58,6 +60,7 @@ io.on('connection', (socket) => {
         // Store the user's data in Redis HASH and SET
         await redisClient.HSET('chat:users:socket_to_username', socket.id, username);
         await redisClient.SADD('chat:users:online', username);
+        await redisClient.SADD(`chat:user:${username}:sockets`, socket.id);
         console.log(`[LOG] User ${socket.id} joined as: ${username}`);
         
         // Now that the user has successfully joined, send them the chat history from Redis.
@@ -71,8 +74,8 @@ io.on('connection', (socket) => {
         // Notify ALL clients (including the sender) that a new user has joined.
         socket.broadcast.emit('notification', `${username} has joined the chat.`);
         
-        // Send the updated user list to all clients from Redis HASH values
-        const users = await redisClient.HVALS('chat:users:socket_to_username');
+        // Send the updated user list to all clients from Redis SET
+        const users = await redisClient.SMEMBERS('chat:users:online');
         io.emit('user_list', users);
     });
 
@@ -120,15 +123,24 @@ io.on('connection', (socket) => {
         // Retrieve username from Redis HASH
         const username = await redisClient.HGET('chat:users:socket_to_username', socket.id);
         if (username) {
-            // Remove user from Redis HASH and SET
+            // Remove socket ID from the user's active connections SET
+            await redisClient.SREM(`chat:user:${username}:sockets`, socket.id);
+
+            // Check if the user has any remaining active connections
+            const remainingConnections = await redisClient.SCARD(`chat:user:${username}:sockets`);
+
+            if (remainingConnections === 0) {
+                // If no remaining connections, remove username from online SET
+                await redisClient.SREM('chat:users:online', username);
+                // Notify ALL clients that the user has left.
+                io.emit('notification', `${username} has left the chat.`);
+            }
+            
+            // Always remove socket ID from the socket_to_username HASH
             await redisClient.HDEL('chat:users:socket_to_username', socket.id);
-            await redisClient.SREM('chat:users:online', username);
             
-            // Notify ALL clients that the user has left.
-            io.emit('notification', `${username} has left the chat.`);
-            
-            // Send the updated user list to all clients from Redis HASH values.
-            const users = await redisClient.HVALS('chat:users:socket_to_username');
+            // Send the updated user list to all clients from Redis SET.
+            const users = await redisClient.SMEMBERS('chat:users:online');
             io.emit('user_list', users);
         }
         console.log(`[LOG] User disconnected: ${socket.id}`);
